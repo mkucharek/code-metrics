@@ -1,0 +1,145 @@
+/**
+ * Configuration Validator Tests
+ */
+
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { validateGitHubConfig, validateOrThrow } from './validator';
+import type { GitHubConfig } from './schema';
+
+// Mock Octokit
+vi.mock('@octokit/rest', () => {
+  return {
+    Octokit: vi.fn(() => ({
+      users: {
+        getAuthenticated: vi.fn(),
+      },
+      orgs: {
+        get: vi.fn(),
+      },
+      request: vi.fn(),
+    })),
+  };
+});
+
+describe('Configuration Validator', () => {
+  let mockOctokit: {
+    users: { getAuthenticated: ReturnType<typeof vi.fn> };
+    orgs: { get: ReturnType<typeof vi.fn> };
+    request: ReturnType<typeof vi.fn>;
+  };
+
+  const validConfig: GitHubConfig = {
+    token: 'ghp_validtoken123',
+    organization: 'test-org',
+    rateLimit: {
+      maxRetries: 3,
+      backoffMs: 1000,
+    },
+  };
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    // Get the mocked Octokit instance
+    const { Octokit } = await import('@octokit/rest');
+    mockOctokit = new Octokit({ auth: 'test' }) as unknown as typeof mockOctokit;
+  });
+
+  describe('validateGitHubConfig', () => {
+    it('should return valid for correct configuration', async () => {
+      // Mock successful responses
+      mockOctokit.users.getAuthenticated.mockResolvedValue({ data: { login: 'testuser' } });
+      mockOctokit.orgs.get.mockResolvedValue({ data: { login: 'test-org' } });
+      mockOctokit.request.mockResolvedValue({
+        data: {},
+        headers: { 'x-oauth-scopes': 'repo, read:org, read:user' },
+      });
+
+      const result = await validateGitHubConfig(validConfig);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.details.tokenValid).toBe(true);
+      expect(result.details.organizationAccessible).toBe(true);
+      expect(result.details.scopes).toContain('repo');
+      expect(result.details.scopes).toContain('read:org');
+    });
+
+    it('should detect invalid token', async () => {
+      mockOctokit.users.getAuthenticated.mockRejectedValue(new Error('401 Bad credentials'));
+
+      const result = await validateGitHubConfig(validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.details.tokenValid).toBe(false);
+      expect(result.errors.some((e) => e.includes('Invalid GitHub token'))).toBe(true);
+    });
+
+    it('should detect inaccessible organization', async () => {
+      mockOctokit.users.getAuthenticated.mockResolvedValue({ data: { login: 'testuser' } });
+      mockOctokit.orgs.get.mockRejectedValue(new Error('404 Not Found'));
+
+      const result = await validateGitHubConfig(validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.details.organizationAccessible).toBe(false);
+      expect(result.errors.some((e) => e.includes('not found or not accessible'))).toBe(true);
+    });
+
+    it('should detect missing scopes', async () => {
+      mockOctokit.users.getAuthenticated.mockResolvedValue({ data: { login: 'testuser' } });
+      mockOctokit.orgs.get.mockResolvedValue({ data: { login: 'test-org' } });
+      mockOctokit.request.mockResolvedValue({
+        data: {},
+        headers: { 'x-oauth-scopes': 'read:user' }, // Missing repo and read:org
+      });
+
+      const result = await validateGitHubConfig(validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.details.missingScopes).toContain('repo');
+      expect(result.details.missingScopes).toContain('read:org');
+      expect(result.errors.some((e) => e.includes('missing required scopes'))).toBe(true);
+    });
+
+    it('should warn if scopes cannot be verified', async () => {
+      mockOctokit.users.getAuthenticated.mockResolvedValue({ data: { login: 'testuser' } });
+      mockOctokit.orgs.get.mockResolvedValue({ data: { login: 'test-org' } });
+      mockOctokit.request.mockRejectedValue(new Error('Failed to get scopes'));
+
+      const result = await validateGitHubConfig(validConfig);
+
+      expect(result.valid).toBe(true); // Still valid, just a warning
+      expect(result.warnings.some((w) => w.includes('Could not verify token scopes'))).toBe(true);
+    });
+
+    it('should stop validation if token is invalid', async () => {
+      mockOctokit.users.getAuthenticated.mockRejectedValue(new Error('401 Bad credentials'));
+
+      await validateGitHubConfig(validConfig);
+
+      // Should not have attempted to check org or scopes
+      expect(mockOctokit.orgs.get).not.toHaveBeenCalled();
+      expect(mockOctokit.request).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('validateOrThrow', () => {
+    it('should not throw for valid configuration', async () => {
+      mockOctokit.users.getAuthenticated.mockResolvedValue({ data: { login: 'testuser' } });
+      mockOctokit.orgs.get.mockResolvedValue({ data: { login: 'test-org' } });
+      mockOctokit.request.mockResolvedValue({
+        data: {},
+        headers: { 'x-oauth-scopes': 'repo, read:org' },
+      });
+
+      await expect(validateOrThrow(validConfig)).resolves.not.toThrow();
+    });
+
+    it('should throw for invalid configuration', async () => {
+      mockOctokit.users.getAuthenticated.mockRejectedValue(new Error('401 Bad credentials'));
+
+      await expect(validateOrThrow(validConfig)).rejects.toThrow('Configuration validation failed');
+    });
+  });
+});

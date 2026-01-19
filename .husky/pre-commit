@@ -1,0 +1,12 @@
+# Run lint-staged for automatic formatting/linting of staged files
+pnpm lint-staged
+
+# Run typecheck to ensure entire codebase compiles
+echo "🔍 Type checking..."
+pnpm typecheck
+
+# Run tests to ensure nothing is broken
+echo "🧪 Running tests..."
+pnpm test
+
+echo "✅ Pre-commit checks passed!"

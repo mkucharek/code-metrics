@@ -1,0 +1,24 @@
+{
+  "nodeEnv": "development",
+  "github": {
+    "token": "${GITHUB_TOKEN}",
+    "organization": "your-org-name",
+    "rateLimit": {
+      "maxRetries": 3,
+      "backoffMs": 1000
+    }
+  },
+  "database": {
+    "path": "./data/metrics.db",
+    "verbose": false,
+    "walMode": true
+  },
+  "logging": {
+    "level": "info",
+    "colored": true
+  },
+  "reports": {
+    "defaultDateRange": "last-30-days",
+    "outputDirectory": "./reports"
+  }
+}
