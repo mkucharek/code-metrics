@@ -822,6 +822,23 @@ program
     }
   });
 
+/**
+ * Serve command - Start web UI
+ */
+program
+  .command('serve')
+  .description('Start the web UI server')
+  .option('-p, --port <port>', 'Port to listen on', '3000')
+  .option('--no-open', 'Do not open browser automatically')
+  .action(async (options: { port: string; open: boolean }) => {
+    const { startServer } = await import('../web/server/index');
+
+    await startServer({
+      port: parseInt(options.port, 10),
+      openBrowser: options.open,
+    });
+  });
+
 program.parse();
 
 export {};

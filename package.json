@@ -9,11 +9,15 @@
   },
   "scripts": {
     "dev": "tsx src/presentation/cli/index.ts",
+    "dev:server": "tsx src/presentation/web/server/index.ts",
+    "dev:client": "cd src/presentation/web/client && pnpm dev",
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\"",
+    "build:web": "cd src/presentation/web/client && pnpm build",
+    "serve": "tsx src/presentation/cli/index.ts serve",
+    "typecheck": "tsc --noEmit && cd src/presentation/web/client && tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -32,11 +36,13 @@
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
   "dependencies": {
+    "@hono/node-server": "^1.19.9",
     "@octokit/rest": "^22.0.0",
     "@types/node": "^24.6.2",
     "better-sqlite3": "^12.4.1",
     "commander": "^14.0.1",
     "dotenv": "^17.2.3",
+    "hono": "^4.11.4",
     "pino": "^10.0.0",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
@@ -52,13 +58,14 @@
     "eslint": "^9.36.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.3",
+    "open": "^11.0.0",
     "ora": "^9.0.0",
     "pino-pretty": "^13.1.1",
     "prettier": "^3.6.2",
     "vitest": "^3.2.4"
   },
   "lint-staged": {
-    "src/**/*.ts": [
+    "src/**/*.{ts,tsx}": [
       "prettier --write",
       "eslint --fix"
     ],

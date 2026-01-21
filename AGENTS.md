@@ -1,3 +1,6 @@
+- make sure `pnpm run verify` passes before finishing
+- use agent-browser skill (if available) to verify the changes you made
+
 
 <!-- BACKLOG.MD GUIDELINES START -->
 # Instructions for the usage of Backlog.md CLI Tool
@@ -265,7 +268,7 @@ backlog task edit 42 -s "In Progress" -a @{myself}
 Previously created tasks contain the why and the what. Once you are familiar with that part you should think about a
 plan on **HOW** to tackle the task and all its acceptance criteria. This is your **Implementation Plan**.
 First do a quick check to see if all the tools that you are planning to use are available in the environment you are
-working in.   
+working in.
 When you are ready, write it down in the task so that you can refer to it later.
 
 ```bash
