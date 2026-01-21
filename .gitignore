@@ -14,6 +14,9 @@ out/
 # Configuration files (use .metricsrc.example as template)
 .metricsrc
 
+# Claude
+.claude/settings.local.json
+
 # Test coverage
 coverage/
 .nyc_output/

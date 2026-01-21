@@ -309,7 +309,8 @@ export function formatEngineerDetailReport(
       tempDate.setDate(tempDate.getDate() + 4 - (tempDate.getDay() || 7));
       const yearStart = new Date(tempDate.getFullYear(), 0, 1);
       const weekNo = Math.ceil(((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-      const weekKey = `W${weekNo.toString().padStart(2, '0')}`;
+      const year = tempDate.getFullYear();
+      const weekKey = `${year}-W${weekNo.toString().padStart(2, '0')}`;
 
       weekNumbers.add(weekKey);
 
@@ -328,8 +329,9 @@ export function formatEngineerDetailReport(
     // Build Markdown table
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    // Table header
-    const headerRow = `| Day | ${sortedWeeks.join(' | ')} |`;
+    // Table header - display only week number (strip year prefix)
+    const displayWeeks = sortedWeeks.map((w) => w.split('-')[1]);
+    const headerRow = `| Day | ${displayWeeks.join(' | ')} |`;
     const separatorRow = `|-----|${sortedWeeks.map(() => '-----').join('|')}|`;
     lines.push(headerRow);
     lines.push(separatorRow);
@@ -380,7 +382,8 @@ export function formatEngineerDetailReport(
       tempDate.setDate(tempDate.getDate() + 4 - (tempDate.getDay() || 7));
       const yearStart = new Date(tempDate.getFullYear(), 0, 1);
       const weekNo = Math.ceil(((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-      const weekKey = `W${weekNo.toString().padStart(2, '0')}`;
+      const year = tempDate.getFullYear();
+      const weekKey = `${year}-W${weekNo.toString().padStart(2, '0')}`;
 
       weekNumbers.add(weekKey);
 
@@ -399,8 +402,9 @@ export function formatEngineerDetailReport(
     // Build Markdown table
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-    // Table header
-    const headerRow = `| Day | ${sortedWeeks.join(' | ')} |`;
+    // Table header - display only week number (strip year prefix)
+    const displayWeeks = sortedWeeks.map((w) => w.split('-')[1]);
+    const headerRow = `| Day | ${displayWeeks.join(' | ')} |`;
     const separatorRow = `|-----|${sortedWeeks.map(() => '-----').join('|')}|`;
     lines.push(headerRow);
     lines.push(separatorRow);
