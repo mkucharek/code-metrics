@@ -639,18 +639,20 @@ export function formatEngineerDetailReport(
     }
   }
 
-  // Commits List
+  // Commits List (Direct commits only - not via PR)
   if (report.commitsList && report.commitsList.length > 0) {
-    lines.push(`## 💻 Commits (Non-Merge, Non-Squash)`);
+    lines.push(`## 💻 Direct Commits (Not via PR)`);
     lines.push('');
-    lines.push(`> **Note:** Merge commits and squash-merge commits are excluded from this list.`);
+    lines.push(
+      `> **Note:** Only commits pushed directly to the default branch are shown. PR commits are excluded.`
+    );
     lines.push('');
     lines.push(`**Total:** ${report.commitsList.length} commits`);
     lines.push('');
 
     // Render commits table
-    lines.push('| Date | SHA | Message | Changes | Repository | PR |');
-    lines.push('|------|-----|---------|---------|------------|-----|');
+    lines.push('| Date | SHA | Message | Changes | Repository |');
+    lines.push('|------|-----|---------|---------|------------|');
 
     report.commitsList.forEach((commit) => {
       const message =
@@ -658,11 +660,8 @@ export function formatEngineerDetailReport(
       const messageEscaped = message.replace(/\|/g, '\\|').replace(/\n/g, ' ');
       const commitLink = `[\`${commit.sha}\`](https://github.com/${report.organization}/${commit.repository}/commit/${commit.fullSha})`;
       const changes = `+${commit.additions}/-${commit.deletions}`;
-      const prLink = commit.prNumber
-        ? `[#${commit.prNumber}](https://github.com/${report.organization}/${commit.repository}/pull/${commit.prNumber})`
-        : '-';
       lines.push(
-        `| ${commit.date} | ${commitLink} | ${messageEscaped} | ${changes} | ${commit.repository} | ${prLink} |`
+        `| ${commit.date} | ${commitLink} | ${messageEscaped} | ${changes} | ${commit.repository} |`
       );
     });
     lines.push('');

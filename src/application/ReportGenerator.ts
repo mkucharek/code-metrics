@@ -249,8 +249,10 @@ export class ReportGenerator {
     // PR size distribution (only merged PRs for consistency with line counts)
     const prSizeDistribution = this.computePRSizeDistribution(mergedPRs);
 
-    // Commit metrics (exclude squash-merge commits)
-    const nonSquashCommits = engineerCommits.filter((c) => !isSquashMergeCommit(c));
+    // Direct commit metrics (exclude squash-merge commits and PR commits)
+    const nonSquashCommits = engineerCommits.filter(
+      (c) => !isSquashMergeCommit(c) && c.pullRequestId == null
+    );
     const totalCommits = nonSquashCommits.length;
     const commitLinesAdded = nonSquashCommits.reduce(
       (sum: number, c: Commit) => sum + c.additions,
@@ -782,8 +784,8 @@ export class ReportGenerator {
     }
 
     for (const commit of commits) {
-      // Skip merge commits and squash-merge commits (already represented in PRs)
-      if (isMergeCommit(commit) || isSquashMergeCommit(commit)) {
+      // Skip merge commits, squash-merge commits, and PR commits (already represented in PRs)
+      if (isMergeCommit(commit) || isSquashMergeCommit(commit) || commit.pullRequestId != null) {
         continue;
       }
 
@@ -1146,8 +1148,10 @@ export class ReportGenerator {
       }
     }
 
-    // Add line changes from direct commits (non-merge, non-squash)
-    const directCommits = commits.filter((c) => !isMergeCommit(c) && !isSquashMergeCommit(c));
+    // Add line changes from direct commits (non-merge, non-squash, not part of a PR)
+    const directCommits = commits.filter(
+      (c) => !isMergeCommit(c) && !isSquashMergeCommit(c) && c.pullRequestId == null
+    );
     for (const commit of directCommits) {
       const dateStr = getDateString(commit.committedAt);
       if (dailyLineChanges.has(dateStr)) {
