@@ -79,7 +79,7 @@ export function Settings() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Sync Status</h2>
 
         {statusLoading ? (
-          <div className="text-gray-500">Loading status...</div>
+          <div className="text-gray-500">Loading status…</div>
         ) : syncStatus ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -156,10 +156,10 @@ export function Settings() {
                 <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full" />
                 <div>
                   <span className="text-sm font-medium text-gray-900">
-                    {progress?.progress.phase === 'initializing' && 'Initializing...'}
-                    {progress?.progress.phase === 'fetching_repos' && 'Fetching repositories...'}
-                    {progress?.progress.phase === 'syncing' && 'Syncing data...'}
-                    {!progress?.progress.phase && 'Sync in progress...'}
+                    {progress?.progress.phase === 'initializing' && 'Initializing…'}
+                    {progress?.progress.phase === 'fetching_repos' && 'Fetching repositories…'}
+                    {progress?.progress.phase === 'syncing' && 'Syncing data…'}
+                    {!progress?.progress.phase && 'Sync in progress…'}
                   </span>
                   {progress?.progress.repository && (
                     <div className="text-xs text-gray-500 mt-0.5">
@@ -261,8 +261,12 @@ export function Settings() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Days to sync</label>
+                <label htmlFor="syncDays" className="block text-sm font-medium text-gray-700 mb-1">
+                  Days to sync
+                </label>
                 <select
+                  id="syncDays"
+                  name="syncDays"
                   value={syncDays}
                   onChange={(e) => setSyncDays(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -275,10 +279,15 @@ export function Settings() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="repository"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Repository (optional)
                 </label>
                 <select
+                  id="repository"
+                  name="repository"
                   value={selectedRepo}
                   onChange={(e) => setSelectedRepo(e.target.value)}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
@@ -295,9 +304,9 @@ export function Settings() {
             <button
               onClick={handleStartSync}
               disabled={isSyncing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
-              {isSyncing ? 'Starting...' : 'Start Sync'}
+              {isSyncing ? 'Starting…' : 'Start Sync'}
             </button>
           </div>
         )}
@@ -313,7 +322,8 @@ export function Settings() {
                 {/* Job header - clickable */}
                 <button
                   onClick={() => setExpandedJobId(expandedJobId === job.id ? null : job.id)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                  aria-expanded={expandedJobId === job.id}
+                  className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-inset"
                 >
                   <div className="flex items-center gap-3">
                     <span

@@ -22,7 +22,7 @@ export function Dashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading metrics...</div>
+        <div className="text-gray-500">Loading metrics…</div>
       </div>
     );
   }
@@ -62,6 +62,8 @@ export function Dashboard() {
             <select
               value={selectedTeam || ''}
               onChange={(e) => setSelectedTeam(e.target.value || undefined)}
+              name="team"
+              aria-label="Select team"
               className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
             >
               <option value="">All Teams</option>
@@ -151,7 +153,7 @@ export function Dashboard() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Link
                       to={`/engineer/${engineer.engineer}`}
-                      className="text-blue-600 hover:text-blue-800 font-medium"
+                      className="text-blue-600 hover:text-blue-800 font-medium focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
                     >
                       {engineer.engineer}
                     </Link>

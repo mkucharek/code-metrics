@@ -11,6 +11,14 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Skip link for accessibility */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md focus:outline-none"
+      >
+        Skip to main content
+      </a>
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -18,7 +26,10 @@ export function Layout() {
             <div className="flex">
               {/* Logo */}
               <div className="flex-shrink-0 flex items-center">
-                <Link to="/" className="text-xl font-bold text-gray-900">
+                <Link
+                  to="/"
+                  className="text-xl font-bold text-gray-900 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
+                >
                   Code Metrics
                 </Link>
               </div>
@@ -30,7 +41,7 @@ export function Layout() {
                     key={item.name}
                     to={item.href}
                     className={clsx(
-                      'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium',
+                      'inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded-t',
                       location.pathname === item.href
                         ? 'border-blue-500 text-gray-900'
                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
@@ -46,7 +57,7 @@ export function Layout() {
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main id="main-content" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
     </div>

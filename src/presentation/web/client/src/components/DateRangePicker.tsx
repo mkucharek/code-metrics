@@ -21,6 +21,8 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     <select
       value={value.since}
       onChange={(e) => onChange({ since: e.target.value })}
+      name="dateRange"
+      aria-label="Select date range"
       className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
     >
       {presets.map((preset) => (

@@ -107,9 +107,9 @@ export function ContributionHeatmap({ data, label = 'contributions' }: Contribut
     return <div className="text-gray-500 text-center py-4">No contribution data</div>;
   }
 
-  const handleMouseEnter = (e: React.MouseEvent, day: DailyContribution) => {
+  const showTooltip = (element: HTMLElement, day: DailyContribution) => {
     if (!day.date) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = element.getBoundingClientRect();
     const date = new Date(day.date);
     const weekNum = `W${getISOWeekNumber(date).toString().padStart(2, '0')}`;
     setTooltip({
@@ -122,25 +122,36 @@ export function ContributionHeatmap({ data, label = 'contributions' }: Contribut
     });
   };
 
-  const handleMouseLeave = () => {
+  const hideTooltip = () => {
     setTooltip((prev) => ({ ...prev, visible: false }));
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent, day: DailyContribution) => {
+    showTooltip(e.currentTarget as HTMLElement, day);
+  };
+
+  const handleFocus = (e: React.FocusEvent, day: DailyContribution) => {
+    showTooltip(e.currentTarget as HTMLElement, day);
   };
 
   return (
     <div className="overflow-x-auto relative">
       {/* Custom Tooltip */}
-      {tooltip.visible && (
-        <div
-          className="fixed z-50 px-3 py-2 text-xs bg-gray-900 text-white rounded-lg shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full"
-          style={{ left: tooltip.x, top: tooltip.y }}
-        >
-          <div className="font-medium">{tooltip.date}</div>
-          <div className="text-gray-300">
-            {tooltip.weekNum} · {tooltip.count.toLocaleString()} {label}
+      <div aria-live="polite" aria-atomic="true">
+        {tooltip.visible && (
+          <div
+            role="tooltip"
+            className="fixed z-50 px-3 py-2 text-xs bg-gray-900 text-white rounded-lg shadow-lg pointer-events-none transform -translate-x-1/2 -translate-y-full"
+            style={{ left: tooltip.x, top: tooltip.y }}
+          >
+            <div className="font-medium">{tooltip.date}</div>
+            <div className="text-gray-300">
+              {tooltip.weekNum} · {tooltip.count.toLocaleString()} {label}
+            </div>
+            <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
           </div>
-          <div className="absolute left-1/2 -bottom-1 -translate-x-1/2 w-2 h-2 bg-gray-900 rotate-45" />
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Heatmap grid */}
       <div className="flex gap-1">
@@ -148,13 +159,22 @@ export function ContributionHeatmap({ data, label = 'contributions' }: Contribut
           <div key={weekIndex} className="flex flex-col gap-1">
             {week.map((day, dayIndex) => {
               const level = day.level ?? 0;
+              const hasData = !!day.date;
+              const ariaLabel = hasData
+                ? `${formatDate(day.date)}: ${day.count} ${label}`
+                : 'No data';
 
               return (
-                <div
+                <button
                   key={dayIndex}
-                  className={clsx('heatmap-cell cursor-pointer', LEVEL_COLORS[level])}
+                  type="button"
+                  tabIndex={hasData ? 0 : -1}
+                  aria-label={ariaLabel}
+                  className={clsx('heatmap-cell', LEVEL_COLORS[level], hasData && 'cursor-pointer')}
                   onMouseEnter={(e) => handleMouseEnter(e, day)}
-                  onMouseLeave={handleMouseLeave}
+                  onMouseLeave={hideTooltip}
+                  onFocus={(e) => handleFocus(e, day)}
+                  onBlur={hideTooltip}
                 />
               );
             })}

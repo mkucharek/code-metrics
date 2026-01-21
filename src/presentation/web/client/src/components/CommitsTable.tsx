@@ -97,13 +97,13 @@ export function CommitsTable({ commits, initialItems = 25, incrementBy = 25 }: C
               <>
                 <button
                   onClick={handleShowMore}
-                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                  className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   Show {Math.min(incrementBy, commits.length - displayCount)} more
                 </button>
                 <button
                   onClick={handleShowAll}
-                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+                  className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
                 >
                   Show all
                 </button>
@@ -112,7 +112,7 @@ export function CommitsTable({ commits, initialItems = 25, incrementBy = 25 }: C
             {isExpanded && (
               <button
                 onClick={handleCollapse}
-                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded"
+                className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
               >
                 Collapse
               </button>

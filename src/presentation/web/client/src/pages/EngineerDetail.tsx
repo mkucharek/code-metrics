@@ -54,7 +54,7 @@ export function EngineerDetail() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading engineer data...</div>
+        <div className="text-gray-500">Loading engineer data…</div>
       </div>
     );
   }
@@ -128,9 +128,9 @@ export function EngineerDetail() {
           <button
             onClick={handleDownloadMarkdown}
             disabled={isExporting || isLoading}
-            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
           >
-            {isExporting ? 'Exporting...' : 'Export'}
+            {isExporting ? 'Exporting…' : 'Export'}
           </button>
         </div>
       </div>
@@ -288,7 +288,7 @@ export function EngineerDetail() {
                 <li key={r.engineer} className="flex justify-between">
                   <Link
                     to={`/engineer/${r.engineer}`}
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-blue-600 hover:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
                   >
                     {r.engineer}
                   </Link>
@@ -311,7 +311,7 @@ export function EngineerDetail() {
                 <li key={r.engineer} className="flex justify-between">
                   <Link
                     to={`/engineer/${r.engineer}`}
-                    className="text-blue-600 hover:text-blue-800"
+                    className="text-blue-600 hover:text-blue-800 focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 rounded"
                   >
                     {r.engineer}
                   </Link>
@@ -353,7 +353,7 @@ export function EngineerDetail() {
               <button
                 key={tab}
                 onClick={() => setPrTab(tab)}
-                className={`px-3 py-1 text-sm rounded-md ${
+                className={`px-3 py-1 text-sm rounded-md focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
                   prTab === tab ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
