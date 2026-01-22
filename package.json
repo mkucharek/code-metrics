@@ -36,11 +36,13 @@
   "license": "ISC",
   "packageManager": "pnpm@10.13.1",
   "dependencies": {
+    "@date-fns/utc": "^2.1.1",
     "@hono/node-server": "^1.19.9",
     "@octokit/rest": "^22.0.0",
     "@types/node": "^24.6.2",
     "better-sqlite3": "^12.4.1",
     "commander": "^14.0.1",
+    "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
     "hono": "^4.11.4",
     "pino": "^10.0.0",

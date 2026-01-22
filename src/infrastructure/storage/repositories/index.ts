@@ -10,3 +10,4 @@ export * from './SyncMetadataRepository';
 export * from './CommitRepository';
 export * from './CommitFileRepository';
 export * from './RepositoryMetadataRepository';
+export * from './DailySyncMetadataRepository';

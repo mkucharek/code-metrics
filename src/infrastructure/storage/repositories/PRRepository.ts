@@ -267,4 +267,55 @@ export class PRRepository {
     const result = validateQueryResult(CountResultSchema, rawResult);
     return result.count;
   }
+
+  /**
+   * Get actual data coverage stats per repository
+   * Shows what's really in the database (not sync metadata)
+   */
+  getDataCoverage(): Array<{
+    repository: string;
+    prCount: number;
+    minCreatedAt: string | null;
+    maxCreatedAt: string | null;
+    minMergedAt: string | null;
+    maxMergedAt: string | null;
+  }> {
+    const CoverageSchema = z.object({
+      repository: z.string(),
+      pr_count: z.number(),
+      min_created_at: z.string().nullable(),
+      max_created_at: z.string().nullable(),
+      min_merged_at: z.string().nullable(),
+      max_merged_at: z.string().nullable(),
+    });
+
+    const rows = this.db
+      .prepare(
+        `
+        SELECT
+          repository,
+          COUNT(*) as pr_count,
+          MIN(created_at) as min_created_at,
+          MAX(created_at) as max_created_at,
+          MIN(merged_at) as min_merged_at,
+          MAX(merged_at) as max_merged_at
+        FROM pull_requests
+        GROUP BY repository
+        ORDER BY repository
+      `
+      )
+      .all();
+
+    return rows.map((row) => {
+      const parsed = CoverageSchema.parse(row);
+      return {
+        repository: parsed.repository,
+        prCount: parsed.pr_count,
+        minCreatedAt: parsed.min_created_at,
+        maxCreatedAt: parsed.max_created_at,
+        minMergedAt: parsed.min_merged_at,
+        maxMergedAt: parsed.max_merged_at,
+      };
+    });
+  }
 }

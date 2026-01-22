@@ -231,12 +231,141 @@ program
   .description('Show what data has been synced')
   .option('--since <date>', 'Filter by start date (days ago or YYYY-MM-DD)')
   .option('--until <date>', 'Filter by end date (YYYY-MM-DD)')
-  .action(async (options: { since?: string; until?: string }) => {
+  .option('--daily', 'Show per-day sync coverage (incremental sync tracking)')
+  .option('--data', 'Show actual data in database (PRs, commits by repo)')
+  .action(async (options: { since?: string; until?: string; daily?: boolean; data?: boolean }) => {
     const configService = new ConfigService();
     const config = configService.getConfig();
     const syncService = new SyncService({ config });
 
     try {
+      // Handle --data option to show actual database contents
+      if (options.data) {
+        const coverage = syncService.getActualDataCoverage();
+
+        console.log(chalk.bold('\n📊 Actual Data in Database\n'));
+
+        // Show totals
+        console.log(chalk.cyan('  Totals:'));
+        console.log(`    Pull Requests: ${coverage.totals.totalPRs}`);
+        console.log(`    Reviews:       ${coverage.totals.totalReviews}`);
+        console.log(`    Comments:      ${coverage.totals.totalComments}`);
+        console.log(`    Commits:       ${coverage.totals.totalCommits}`);
+        console.log();
+
+        // Show PRs by repository
+        if (coverage.prs.length > 0) {
+          console.log(chalk.cyan('  Pull Requests by Repository:'));
+          for (const repo of coverage.prs) {
+            const dateRange =
+              repo.minCreatedAt && repo.maxCreatedAt
+                ? `${repo.minCreatedAt.split('T')[0]} to ${repo.maxCreatedAt.split('T')[0]}`
+                : 'no dates';
+            console.log(`    ${chalk.bold(repo.repository)}: ${repo.prCount} PRs (${dateRange})`);
+          }
+          console.log();
+        }
+
+        // Show Commits by repository
+        if (coverage.commits.length > 0) {
+          console.log(chalk.cyan('  Commits by Repository:'));
+          for (const repo of coverage.commits) {
+            const dateRange =
+              repo.minCommittedAt && repo.maxCommittedAt
+                ? `${repo.minCommittedAt} to ${repo.maxCommittedAt}`
+                : 'no dates';
+            console.log(
+              `    ${chalk.bold(repo.repository)}: ${repo.commitCount} commits (${repo.prCommitCount} PR, ${repo.directCommitCount} direct) [${dateRange}]`
+            );
+          }
+          console.log();
+        }
+
+        if (coverage.prs.length === 0 && coverage.commits.length === 0) {
+          console.log(chalk.yellow('  No data found in database.\n'));
+          console.log(chalk.cyan('Run:'), chalk.bold('pnpm dev sync --since 30'));
+        }
+
+        console.log();
+        syncService.close();
+        return;
+      }
+
+      // Handle --daily option to show per-day sync coverage
+      if (options.daily) {
+        const dailyRepos = syncService.getRepositoriesWithDailySync();
+
+        if (dailyRepos.length === 0) {
+          console.log(chalk.yellow('\n⚠️  No per-day sync data found.\n'));
+          console.log(chalk.gray('   Per-day tracking starts after first sync with new version.'));
+          console.log(chalk.cyan('Run:'), chalk.bold('pnpm dev sync --since 30'));
+          console.log();
+          syncService.close();
+          return;
+        }
+
+        console.log(chalk.bold('\n📅 Per-Day Sync Coverage\n'));
+
+        // Parse filter dates if provided
+        let filterStart: Date | undefined;
+        let filterEnd: Date | undefined;
+        if (options.since || options.until) {
+          const parsed = syncService.parseDateRange({
+            since: options.since || '0',
+            until: options.until,
+          });
+          filterStart = options.since ? parsed.startDate : undefined;
+          filterEnd = parsed.endDate;
+
+          if (filterStart || filterEnd) {
+            console.log(
+              chalk.gray(
+                `   Filter: ${filterStart ? formatLocalDate(filterStart) : 'any'} to ${filterEnd ? formatLocalDate(filterEnd) : 'today'}\n`
+              )
+            );
+          }
+        }
+
+        for (const repo of dailyRepos) {
+          const { syncedDays, ranges, gaps, coverage } = syncService.getDailySyncCoverage(
+            repo,
+            filterStart,
+            filterEnd
+          );
+
+          console.log(chalk.bold(`  ${repo}`));
+          if (coverage) {
+            console.log(
+              chalk.gray(
+                `    Total coverage: ${coverage.minDate} to ${coverage.maxDate} (${coverage.dayCount} days)`
+              )
+            );
+          }
+          console.log(chalk.green(`    Synced days: ${syncedDays.length}`));
+          if (syncedDays.length > 0) {
+            console.log(chalk.gray(`    Ranges: ${ranges}`));
+          }
+          if (gaps.length > 0) {
+            console.log(
+              chalk.yellow(
+                `    Gaps: ${gaps.slice(0, 5).join(', ')}${gaps.length > 5 ? ` (and ${gaps.length - 5} more)` : ''}`
+              )
+            );
+          }
+          console.log();
+        }
+
+        console.log(
+          chalk.cyan('💡 Tip:'),
+          'Use',
+          chalk.bold('pnpm dev sync --since <date>'),
+          'to sync missing days'
+        );
+        console.log();
+        syncService.close();
+        return;
+      }
+
       // Get all repositories that have been synced
       const repositories = syncService.getSyncedRepositories();
 

@@ -12,9 +12,10 @@ import type { CommitRepository } from '../storage/repositories/CommitRepository'
 import type { PRRepository } from '../storage/repositories/PRRepository';
 import type { RepositoryMetadataRepository } from '../storage/repositories/RepositoryMetadataRepository';
 import type { ReviewRepository } from '../storage/repositories/ReviewRepository';
-import type { SyncMetadataRepository } from '../storage/repositories/SyncMetadataRepository';
+import type { DailySyncMetadataRepository } from '../storage/repositories/DailySyncMetadataRepository';
 import type { GitHubClient } from './GitHubClient';
 import { mapComment, mapCommit, mapPullRequest, mapReview } from './mappers';
+import { formatDateKey, getDateRangeDays, batchIntoDayRanges } from '../../domain/utils/dateRange';
 
 /**
  * Sync options
@@ -56,6 +57,10 @@ export interface SyncSummary {
   durationMs: number;
   /** Errors encountered */
   errors: string[];
+  /** Number of days synced (per-day tracking) */
+  daysSynced: number;
+  /** Number of days skipped (already synced) */
+  daysSkipped: number;
 }
 
 /**
@@ -72,10 +77,10 @@ export class GitHubSynchronizer {
     private prRepository: PRRepository,
     private reviewRepository: ReviewRepository,
     private commentRepository: CommentRepository,
-    private syncMetadataRepository: SyncMetadataRepository,
     private commitRepository: CommitRepository,
     private commitFileRepository: CommitFileRepository,
-    private repoMetadataRepository: RepositoryMetadataRepository
+    private repoMetadataRepository: RepositoryMetadataRepository,
+    private dailySyncMetadataRepository: DailySyncMetadataRepository
   ) {}
 
   /**
@@ -93,6 +98,8 @@ export class GitHubSynchronizer {
       commitsFetched: 0,
       durationMs: 0,
       errors: [],
+      daysSynced: 0,
+      daysSkipped: 0,
     };
 
     try {
@@ -108,10 +115,13 @@ export class GitHubSynchronizer {
         `GitHub API: ${initialRateLimit.remaining}/${initialRateLimit.limit} requests remaining (resets in ${resetIn} min)`
       );
 
+      // Pre-compute allDays once (not per-repo)
+      const allDays = getDateRangeDays(options.startDate, options.endDate);
+
       if (options.repo) {
         // Sync specific repository
         onProgress?.(`Syncing repository: ${options.repo}`);
-        await this.syncSingleRepository(options.repo, options, summary, onProgress);
+        await this.syncSingleRepository(options.repo, options, allDays, summary, onProgress);
       } else {
         // Sync all repositories
         onProgress?.(`Fetching repositories from organization...`);
@@ -162,7 +172,7 @@ export class GitHubSynchronizer {
           onProgress?.(`\n[${index + 1}/${activeRepos.length}] Syncing ${repo.name}...`);
 
           try {
-            await this.syncSingleRepository(repo.name, options, summary, onProgress);
+            await this.syncSingleRepository(repo.name, options, allDays, summary, onProgress);
           } catch (error) {
             // Check if it's a rate limit error - if so, stop immediately
             if (error instanceof GitHubRateLimitError) {
@@ -213,58 +223,65 @@ export class GitHubSynchronizer {
   }
 
   /**
-   * Sync a single repository
+   * Sync a single repository using per-day tracking
    */
   private async syncSingleRepository(
     repo: string,
     options: SyncOptions,
+    allDays: string[],
     summary: SyncSummary,
     onProgress?: ProgressCallback
   ): Promise<void> {
     summary.repoCount++;
 
-    // Check cache and determine sync strategy
-    let syncStrategy: 'full' | 'extension' | 'skip' = 'full';
-    let extensionStartDate: Date | null = null;
+    const org = this.githubClient.getOrganization();
+    const startKey = formatDateKey(options.startDate);
+    const endKey = formatDateKey(options.endDate);
 
-    if (!options.force) {
-      const lastSync = this.syncMetadataRepository.getLastSync(
-        'pull_requests',
-        this.githubClient.getOrganization(),
-        repo
+    // Compute days to sync using per-day tracking
+    const daysToSync: string[] = [];
+    const daysSkipped: string[] = [];
+
+    if (options.force) {
+      // Force mode: sync all days
+      daysToSync.push(...allDays);
+    } else {
+      // Check which days are already synced
+      const syncedDays = new Set(
+        this.dailySyncMetadataRepository.getSyncedDays('pull_requests', org, repo, startKey, endKey)
       );
 
-      if (lastSync && lastSync.dateRangeStart && lastSync.dateRangeEnd) {
-        // Check if previous sync fully covers the requested date range (cache hit)
-        if (
-          lastSync.dateRangeStart <= options.startDate &&
-          lastSync.dateRangeEnd >= options.endDate
-        ) {
-          onProgress?.(`  ⏭️  ${repo} already synced (cached). Use --force to resync.`);
-          return;
+      // Single-pass partition instead of two filter calls
+      for (const day of allDays) {
+        if (syncedDays.has(day)) {
+          daysSkipped.push(day);
+        } else {
+          daysToSync.push(day);
         }
+      }
 
-        // Check if this is a cache extension
-        // Conditions: startDate matches/overlaps AND endDate is extended AND ranges overlap
-        if (
-          lastSync.dateRangeStart <= options.startDate &&
-          lastSync.dateRangeEnd < options.endDate &&
-          lastSync.dateRangeEnd >= options.startDate
-        ) {
-          syncStrategy = 'extension';
-          extensionStartDate = lastSync.dateRangeEnd;
-          const cachedEnd = lastSync.dateRangeEnd.toISOString().split('T')[0];
-          const newEnd = options.endDate.toISOString().split('T')[0];
-          onProgress?.(
-            `  🔄 Extending cache from ${cachedEnd} to ${newEnd} (fetching incremental updates)`
-          );
-        }
+      if (daysToSync.length === 0) {
+        onProgress?.(
+          `  ⏭️  ${repo}: all ${allDays.length} days already synced. Use --force to resync.`
+        );
+        summary.daysSkipped += daysSkipped.length;
+        return;
+      }
+
+      if (daysSkipped.length > 0) {
+        onProgress?.(
+          `  📅 ${repo}: ${daysToSync.length} days to sync (${daysSkipped.length} already synced)`
+        );
+        summary.daysSkipped += daysSkipped.length;
       }
     }
 
-    // Determine the effective start date for fetching
-    const fetchStartDate =
-      syncStrategy === 'extension' && extensionStartDate ? extensionStartDate : options.startDate;
+    // Batch days into contiguous ranges for efficient API calls
+    const ranges = batchIntoDayRanges(daysToSync);
+
+    // Use the first range's start as the effective fetch start
+    const firstRange = ranges[0];
+    const fetchStartDate = firstRange ? firstRange.start : options.startDate;
 
     // Skip quota check if user explicitly specified a single repo (they know what they're doing)
     const skipQuotaCheck = !!options.repo;
@@ -274,47 +291,22 @@ export class GitHubSynchronizer {
       const quota = await this.githubClient.checkRateLimit();
       const CALLS_PER_PR = 6; // 1 for PR details, 1 for reviews, 2 for comments, 1 for PR commits, 1 buffer
       const SAFETY_MARGIN = 50; // Keep 50 calls as safety buffer
-      let estimatedPRs: number;
-      let estimatedCalls: number;
 
-      if (syncStrategy === 'extension') {
-        // For extensions, use fixed estimate based on days extended (no API call needed)
-        const daysExtended = Math.ceil(
-          (options.endDate.getTime() - (extensionStartDate?.getTime() ?? 0)) / (1000 * 60 * 60 * 24)
-        );
-        // Assume ~15 PRs updated per day (new PRs + PRs with new reviews/comments)
-        estimatedPRs = Math.max(10, 15 * daysExtended);
-        estimatedCalls = Math.ceil(estimatedPRs / 100) + estimatedPRs * CALLS_PER_PR;
+      // Estimate based on days to sync - assume ~15 PRs updated per day
+      const estimatedPRs = Math.max(10, 15 * daysToSync.length);
+      const estimatedCalls = Math.ceil(estimatedPRs / 100) + estimatedPRs * CALLS_PER_PR;
 
-        if (quota.remaining < estimatedCalls + SAFETY_MARGIN) {
-          onProgress?.(
-            `  ⏭️  ${repo}: ~${estimatedPRs} updated PRs (~${estimatedCalls} API calls needed) - insufficient quota (${quota.remaining} remaining), skipping for now`
-          );
-          summary.reposSkipped++;
-          return;
-        }
-
+      if (quota.remaining < estimatedCalls + SAFETY_MARGIN) {
         onProgress?.(
-          `     💡 Estimated API calls: ~${estimatedCalls} (~${estimatedPRs} updated PRs × ${CALLS_PER_PR} calls/PR)`
+          `  ⏭️  ${repo}: ~${estimatedPRs} PRs (~${estimatedCalls} API calls needed) - insufficient quota (${quota.remaining} remaining), skipping`
         );
-      } else {
-        // For full syncs, call countPullRequests to get accurate count
-        const prCount = await this.githubClient.countPullRequests(repo, fetchStartDate);
-        estimatedPRs = prCount;
-        estimatedCalls = Math.ceil(prCount / 100) + prCount * CALLS_PER_PR;
-
-        if (quota.remaining < estimatedCalls + SAFETY_MARGIN) {
-          onProgress?.(
-            `  ⏭️  ${repo}: ${prCount} PRs (~${estimatedCalls} API calls needed) - insufficient quota (${quota.remaining} remaining), skipping for now`
-          );
-          summary.reposSkipped++;
-          return;
-        }
-
-        onProgress?.(
-          `     💡 Estimated API calls: ~${estimatedCalls} (${prCount} PRs × ${CALLS_PER_PR} calls/PR)`
-        );
+        summary.reposSkipped++;
+        return;
       }
+
+      onProgress?.(
+        `     💡 Estimated API calls: ~${estimatedCalls} (~${estimatedPRs} PRs × ${CALLS_PER_PR} calls/PR)`
+      );
     }
 
     // Fetch PRs
@@ -333,6 +325,11 @@ export class GitHubSynchronizer {
       commentsFetched: 0,
       commitsFetched: 0,
     };
+
+    // Track which days actually had data processed (for atomic sync tracking)
+    const daysWithProcessedData = new Set<string>();
+    // Track errors that occurred during this repo's sync (for atomic marking)
+    const initialErrorCount = summary.errors.length;
 
     // Helper to check if a date falls within range
     const isInRange = (dateStr: string | null): boolean => {
@@ -377,6 +374,17 @@ export class GitHubSynchronizer {
         this.prRepository.save(domainPR);
         summary.prsFetched++;
         repoStats.prsFetched++;
+
+        // Track which days this PR belongs to (for atomic sync tracking)
+        const prDates = [fullPR.created_at, fullPR.merged_at, fullPR.closed_at].filter(Boolean);
+        for (const dateStr of prDates) {
+          if (dateStr && isInRange(dateStr)) {
+            const dayKey = formatDateKey(new Date(dateStr));
+            if (daysToSync.includes(dayKey)) {
+              daysWithProcessedData.add(dayKey);
+            }
+          }
+        }
 
         // Fetch and save reviews
         onProgress?.(`    Fetching reviews...`);
@@ -452,20 +460,49 @@ export class GitHubSynchronizer {
       onProgress?.(`  ✗ ${errorMsg}`);
     }
 
-    // Update sync metadata
-    this.syncMetadataRepository.save({
-      resourceType: 'pull_requests',
-      organization: this.githubClient.getOrganization(),
-      repository: repo,
-      lastSyncAt: new Date(),
-      dateRangeStart: options.startDate,
-      dateRangeEnd: options.endDate,
-      itemsSynced: repoStats.prsFetched,
-    });
+    // Update per-day sync metadata (only mark days that were actually processed)
+    {
+      const hadErrors = summary.errors.length > initialErrorCount;
+      const now = new Date();
+
+      // Determine which days to mark as synced:
+      // - If no errors: mark all requested days (successful complete sync)
+      // - If errors: only mark days that had data successfully processed
+      const daysToMark = hadErrors
+        ? daysToSync.filter((day) => daysWithProcessedData.has(day))
+        : daysToSync;
+
+      if (daysToMark.length > 0) {
+        const dailyRecords = daysToMark.map((syncDate) => ({
+          resourceType: 'pull_requests' as const,
+          organization: org,
+          repository: repo,
+          syncDate,
+          syncedAt: now,
+          itemsSynced: 0,
+        }));
+        this.dailySyncMetadataRepository.saveBatch(dailyRecords);
+        summary.daysSynced += daysToMark.length;
+      }
+
+      if (hadErrors && daysToMark.length < daysToSync.length) {
+        const unmarkedCount = daysToSync.length - daysToMark.length;
+        onProgress?.(
+          `  ⚠️  ${unmarkedCount} days NOT marked as synced due to errors (will retry on next sync)`
+        );
+      }
+    }
 
     onProgress?.(
       `  ✓ ${repo}: ${repoStats.prsFetched} PRs, ${repoStats.reviewsFetched} reviews, ${repoStats.commentsFetched} comments, ${repoStats.commitsFetched} commits`
     );
+    const daysMarkedCount =
+      summary.errors.length > initialErrorCount
+        ? daysToSync.filter((day) => daysWithProcessedData.has(day)).length
+        : daysToSync.length;
+    if (daysMarkedCount > 0) {
+      onProgress?.(`     📅 ${daysMarkedCount} days marked as synced`);
+    }
 
     // Show remaining quota after each repo
     const currentQuota = await this.githubClient.checkRateLimit();
@@ -486,6 +523,8 @@ export class GitHubSynchronizer {
       '',
       `📊 Repositories synced:    ${summary.repoCount}`,
       `⏭️  Repositories skipped:   ${summary.reposSkipped} (inactive)`,
+      `📅 Days synced:            ${summary.daysSynced}`,
+      `⏭️  Days skipped:           ${summary.daysSkipped} (already synced)`,
       `📋 Pull requests fetched:  ${summary.prsFetched}`,
       `⏭️  Pull requests skipped:  ${summary.prsSkipped}`,
       `👀 Reviews fetched:        ${summary.reviewsFetched}`,

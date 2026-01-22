@@ -179,4 +179,59 @@ export class CommitRepository {
       pullRequestId: dbCommit.pull_request_id ?? null,
     };
   }
+
+  /**
+   * Get actual data coverage stats per repository
+   * Shows what's really in the database (not sync metadata)
+   */
+  getDataCoverage(): Array<{
+    repository: string;
+    commitCount: number;
+    prCommitCount: number;
+    directCommitCount: number;
+    minCommittedAt: string | null;
+    maxCommittedAt: string | null;
+  }> {
+    const CoverageSchema = z.object({
+      repository: z.string(),
+      commit_count: z.number(),
+      pr_commit_count: z.number(),
+      direct_commit_count: z.number(),
+      min_committed_at: z.number().nullable(),
+      max_committed_at: z.number().nullable(),
+    });
+
+    const rows = this.db
+      .prepare(
+        `
+        SELECT
+          repository,
+          COUNT(*) as commit_count,
+          SUM(CASE WHEN pull_request_id IS NOT NULL THEN 1 ELSE 0 END) as pr_commit_count,
+          SUM(CASE WHEN pull_request_id IS NULL THEN 1 ELSE 0 END) as direct_commit_count,
+          MIN(committed_at) as min_committed_at,
+          MAX(committed_at) as max_committed_at
+        FROM commits
+        GROUP BY repository
+        ORDER BY repository
+      `
+      )
+      .all();
+
+    return rows.map((row) => {
+      const parsed = CoverageSchema.parse(row);
+      return {
+        repository: parsed.repository,
+        commitCount: parsed.commit_count,
+        prCommitCount: parsed.pr_commit_count,
+        directCommitCount: parsed.direct_commit_count,
+        minCommittedAt: parsed.min_committed_at
+          ? (new Date(parsed.min_committed_at).toISOString().split('T')[0] ?? null)
+          : null,
+        maxCommittedAt: parsed.max_committed_at
+          ? (new Date(parsed.max_committed_at).toISOString().split('T')[0] ?? null)
+          : null,
+      };
+    });
+  }
 }

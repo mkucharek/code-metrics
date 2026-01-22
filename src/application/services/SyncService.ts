@@ -10,10 +10,10 @@ import {
   PRRepository,
   ReviewRepository,
   CommentRepository,
-  SyncMetadataRepository,
   CommitRepository,
   CommitFileRepository,
   RepositoryMetadataRepository,
+  DailySyncMetadataRepository,
 } from '../../infrastructure/storage/repositories';
 import { initializeDatabase } from '../../infrastructure/storage/database';
 import { applyMigrations, ALL_MIGRATIONS } from '../../infrastructure/storage/migrations';
@@ -26,6 +26,7 @@ import {
   getDaysAgo,
   getEndOfToday,
 } from '../../domain/utils/dates';
+import { formatDateKey, formatDaysWithGaps } from '../../domain/utils/dateRange';
 
 /**
  * Options for sync operation
@@ -103,10 +104,10 @@ export class SyncService {
       const prRepo = new PRRepository(db);
       const reviewRepo = new ReviewRepository(db);
       const commentRepo = new CommentRepository(db);
-      const syncMetadataRepo = new SyncMetadataRepository(db);
       const commitRepo = new CommitRepository(db);
       const commitFileRepo = new CommitFileRepository(db);
       const repoMetadataRepo = new RepositoryMetadataRepository(db);
+      const dailySyncMetadataRepo = new DailySyncMetadataRepository(db);
 
       // Create GitHub client
       const githubClient = new GitHubClient(this.config.github, this.logger);
@@ -117,10 +118,10 @@ export class SyncService {
         prRepo,
         reviewRepo,
         commentRepo,
-        syncMetadataRepo,
         commitRepo,
         commitFileRepo,
-        repoMetadataRepo
+        repoMetadataRepo,
+        dailySyncMetadataRepo
       );
     }
 
@@ -203,16 +204,22 @@ export class SyncService {
   }
 
   /**
-   * Get synced repositories
+   * Get synced repositories (from per-day sync metadata)
    */
   getSyncedRepositories(): string[] {
     const db = this.initializeDatabase();
-    const syncMetadataRepo = new SyncMetadataRepository(db);
-    return syncMetadataRepo.getRepositories(this.config.github.organization);
+    const dailySyncRepo = new DailySyncMetadataRepository(db);
+    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization);
+
+    const repos = new Set<string>();
+    for (const entry of summary) {
+      repos.add(entry.repository);
+    }
+    return Array.from(repos).sort();
   }
 
   /**
-   * Get sync metadata for a repository
+   * Get sync metadata for a repository (derived from per-day sync data)
    */
   getRepositorySyncInfo(repository: string): Array<{
     resourceType: string;
@@ -222,8 +229,137 @@ export class SyncService {
     itemsSynced: number;
   }> {
     const db = this.initializeDatabase();
-    const syncMetadataRepo = new SyncMetadataRepository(db);
-    return syncMetadataRepo.findByRepository(this.config.github.organization, repository);
+    const dailySyncRepo = new DailySyncMetadataRepository(db);
+
+    // Get date range coverage from daily sync metadata
+    const coverage = dailySyncRepo.getDateRangeCoverage(
+      'pull_requests',
+      this.config.github.organization,
+      repository
+    );
+
+    if (!coverage) {
+      return [];
+    }
+
+    // Get the most recent sync timestamp
+    const lastSyncAt = dailySyncRepo.getLastSyncAt(
+      'pull_requests',
+      this.config.github.organization,
+      repository
+    );
+
+    return [
+      {
+        resourceType: 'pull_requests',
+        dateRangeStart: new Date(coverage.minDate),
+        dateRangeEnd: new Date(coverage.maxDate),
+        lastSyncAt: lastSyncAt || new Date(),
+        itemsSynced: coverage.dayCount,
+      },
+    ];
+  }
+
+  /**
+   * Get per-day sync coverage for a repository
+   */
+  getDailySyncCoverage(
+    repository: string,
+    startDate?: Date,
+    endDate?: Date
+  ): {
+    syncedDays: string[];
+    ranges: string;
+    gaps: string[];
+    coverage: { minDate: string; maxDate: string; dayCount: number } | null;
+  } {
+    const db = this.initializeDatabase();
+    const dailySyncRepo = new DailySyncMetadataRepository(db);
+
+    const startKey = startDate ? formatDateKey(startDate) : '1970-01-01';
+    const endKey = endDate ? formatDateKey(endDate) : '2100-01-01';
+
+    const syncedDays = dailySyncRepo.getSyncedDays(
+      'pull_requests',
+      this.config.github.organization,
+      repository,
+      startKey,
+      endKey
+    );
+
+    const { ranges, gaps } = formatDaysWithGaps(syncedDays);
+    const coverage = dailySyncRepo.getDateRangeCoverage(
+      'pull_requests',
+      this.config.github.organization,
+      repository
+    );
+
+    return { syncedDays, ranges, gaps, coverage };
+  }
+
+  /**
+   * Get all repositories with daily sync data
+   */
+  getRepositoriesWithDailySync(): string[] {
+    const db = this.initializeDatabase();
+    const dailySyncRepo = new DailySyncMetadataRepository(db);
+    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization);
+
+    const repos = new Set<string>();
+    for (const entry of summary) {
+      repos.add(entry.repository);
+    }
+    return Array.from(repos).sort();
+  }
+
+  /**
+   * Get actual data coverage from the database
+   * Shows what PRs are really stored, not just sync metadata
+   */
+  getActualDataCoverage(): {
+    prs: Array<{
+      repository: string;
+      prCount: number;
+      minCreatedAt: string | null;
+      maxCreatedAt: string | null;
+      minMergedAt: string | null;
+      maxMergedAt: string | null;
+    }>;
+    commits: Array<{
+      repository: string;
+      commitCount: number;
+      prCommitCount: number;
+      directCommitCount: number;
+      minCommittedAt: string | null;
+      maxCommittedAt: string | null;
+    }>;
+    totals: {
+      totalPRs: number;
+      totalReviews: number;
+      totalComments: number;
+      totalCommits: number;
+    };
+  } {
+    const db = this.initializeDatabase();
+    const prRepo = new PRRepository(db);
+    const commitRepo = new CommitRepository(db);
+    const reviewRepo = new ReviewRepository(db);
+    const commentRepo = new CommentRepository(db);
+
+    return {
+      prs: prRepo.getDataCoverage(),
+      commits: commitRepo.getDataCoverage(),
+      totals: {
+        totalPRs: prRepo.count(),
+        totalReviews: reviewRepo.count(),
+        totalComments: commentRepo.count(),
+        totalCommits: (db.prepare('SELECT COUNT(*) as count FROM commits').get() as {
+          count: number;
+        })
+          ? (db.prepare('SELECT COUNT(*) as count FROM commits').get() as { count: number }).count
+          : 0,
+      },
+    };
   }
 
   /**

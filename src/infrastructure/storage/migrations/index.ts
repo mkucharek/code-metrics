@@ -13,6 +13,7 @@ export { default as migration007 } from './007-add-branch-names-to-pull-requests
 export { default as migration008 } from './008-add-requested-reviewers-to-pull-requests';
 export { default as migration009 } from './009-add-commit-files-table';
 export { default as migration010 } from './010-add-pr-commits';
+export { default as migration011 } from './011-add-daily-sync-metadata';
 export * from './Migration';
 
 import { migration001 } from './001-initial-schema';
@@ -25,6 +26,7 @@ import migration007 from './007-add-branch-names-to-pull-requests';
 import migration008 from './008-add-requested-reviewers-to-pull-requests';
 import migration009 from './009-add-commit-files-table';
 import migration010 from './010-add-pr-commits';
+import migration011 from './011-add-daily-sync-metadata';
 
 /**
  * All migrations in order
@@ -40,4 +42,5 @@ export const ALL_MIGRATIONS = [
   migration008,
   migration009,
   migration010,
+  migration011,
 ];
