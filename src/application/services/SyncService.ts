@@ -212,7 +212,7 @@ export class SyncService {
   getSyncedRepositories(): string[] {
     const db = this.initializeDatabase();
     const dailySyncRepo = new DailySyncMetadataRepository(db);
-    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization);
+    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization || '');
 
     const repos = new Set<string>();
     for (const entry of summary) {
@@ -237,7 +237,7 @@ export class SyncService {
     // Get date range coverage from daily sync metadata
     const coverage = dailySyncRepo.getDateRangeCoverage(
       'pull_requests',
-      this.config.github.organization,
+      this.config.github.organization || '',
       repository
     );
 
@@ -248,7 +248,7 @@ export class SyncService {
     // Get the most recent sync timestamp
     const lastSyncAt = dailySyncRepo.getLastSyncAt(
       'pull_requests',
-      this.config.github.organization,
+      this.config.github.organization || '',
       repository
     );
 
@@ -284,7 +284,7 @@ export class SyncService {
 
     const syncedDays = dailySyncRepo.getSyncedDays(
       'pull_requests',
-      this.config.github.organization,
+      this.config.github.organization || '',
       repository,
       startKey,
       endKey
@@ -293,7 +293,7 @@ export class SyncService {
     const { ranges, gaps } = formatDaysWithGaps(syncedDays);
     const coverage = dailySyncRepo.getDateRangeCoverage(
       'pull_requests',
-      this.config.github.organization,
+      this.config.github.organization || '',
       repository
     );
 
@@ -306,7 +306,7 @@ export class SyncService {
   getRepositoriesWithDailySync(): string[] {
     const db = this.initializeDatabase();
     const dailySyncRepo = new DailySyncMetadataRepository(db);
-    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization);
+    const summary = dailySyncRepo.getSyncSummary(this.config.github.organization || '');
 
     const repos = new Set<string>();
     for (const entry of summary) {

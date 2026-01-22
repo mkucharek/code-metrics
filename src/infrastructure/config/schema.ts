@@ -9,11 +9,11 @@ import { z } from 'zod';
  * GitHub configuration schema
  */
 export const GitHubConfigSchema = z.object({
-  /** GitHub personal access token */
-  token: z.string().min(1, 'GitHub token is required'),
+  /** GitHub personal access token (required only for sync operations) */
+  token: z.string().optional(),
 
-  /** GitHub organization name */
-  organization: z.string().min(1, 'GitHub organization is required'),
+  /** GitHub organization name (required only for sync operations) */
+  organization: z.string().optional(),
 
   /** Rate limit configuration */
   rateLimit: z
@@ -116,7 +116,7 @@ export const AppConfigSchema = z.object({
   nodeEnv: z.enum(['development', 'production', 'test']).default('development'),
 
   /** GitHub configuration */
-  github: GitHubConfigSchema,
+  github: GitHubConfigSchema.default({ rateLimit: { maxRetries: 3, backoffMs: 1000 } }),
 
   /** Database configuration */
   database: DatabaseConfigSchema,

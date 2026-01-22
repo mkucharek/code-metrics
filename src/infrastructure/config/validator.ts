@@ -31,6 +31,19 @@ export async function validateGitHubConfig(config: GitHubConfig): Promise<Valida
     details: {},
   };
 
+  // Check required fields
+  if (!config.token) {
+    result.valid = false;
+    result.errors.push('GitHub token is required. Set GITHUB_TOKEN in your .env file.');
+    return result;
+  }
+
+  if (!config.organization) {
+    result.valid = false;
+    result.errors.push('GitHub organization is required. Set GITHUB_ORG in your .env file.');
+    return result;
+  }
+
   const octokit = new Octokit({ auth: config.token });
 
   // 1. Test authentication

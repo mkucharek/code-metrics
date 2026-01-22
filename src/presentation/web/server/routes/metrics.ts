@@ -73,7 +73,7 @@ export function metricsRoutes(ctx: ServerContext): Hono {
     const repositories = query.repositories?.split(',').filter(Boolean);
 
     const metrics = ctx.reportGenerator.generateOrganizationReport({
-      organization: ctx.config.github.organization,
+      organization: ctx.config.github.organization || '',
       dateRange,
       repositories,
       excludedUsers: ctx.config.reports.excludedUsers,
@@ -116,7 +116,7 @@ export function metricsRoutes(ctx: ServerContext): Hono {
     }
 
     const report = ctx.reportGenerator.generateEngineerDetailReport({
-      organization: ctx.config.github.organization,
+      organization: ctx.config.github.organization || '',
       dateRange,
       engineer: username,
       repositories,
@@ -149,7 +149,7 @@ export function metricsRoutes(ctx: ServerContext): Hono {
     }
 
     const report = ctx.reportGenerator.generateEngineerDetailReport({
-      organization: ctx.config.github.organization,
+      organization: ctx.config.github.organization || '',
       dateRange,
       engineer: username,
       repositories,
@@ -184,7 +184,7 @@ export function metricsRoutes(ctx: ServerContext): Hono {
     const repositories = query.repositories?.split(',').filter(Boolean);
 
     const report = ctx.reportGenerator.generateRepositoryHealthReport({
-      organization: ctx.config.github.organization,
+      organization: ctx.config.github.organization || '',
       dateRange,
       repositories,
       excludedUsers: ctx.config.reports.excludedUsers,

@@ -609,7 +609,11 @@ program
         spinner.succeed(chalk.green('✅ Configuration valid!'));
         console.log();
         console.log(chalk.green('  ✓ Token:'), 'Valid');
-        console.log(chalk.green('  ✓ Organization:'), config.github.organization, '(accessible)');
+        console.log(
+          chalk.green('  ✓ Organization:'),
+          config.github.organization || '',
+          '(accessible)'
+        );
 
         if (result.details.scopes && result.details.scopes.length > 0) {
           console.log(chalk.green('  ✓ Scopes:'), result.details.scopes.join(', '));
@@ -776,7 +780,7 @@ program
 
       // Check if data exists for requested date range
       const coverage = reportGenerator.checkDataCoverage(
-        config.github.organization,
+        config.github.organization || '',
         { start: startDate, end: endDate },
         repositories?.[0]
       );
@@ -869,7 +873,7 @@ program
 
         // Generate detailed engineer report
         const detailReport = reportGenerator.generateEngineerDetailReport({
-          organization: config.github.organization,
+          organization: config.github.organization || '',
           dateRange: { start: startDate, end: endDate },
           engineer: options.engineer,
           repositories,
@@ -887,7 +891,7 @@ program
         }
       } else if (options.type === 'rankings') {
         const metrics = reportGenerator.generateOrganizationReport({
-          organization: config.github.organization,
+          organization: config.github.organization || '',
           dateRange: { start: startDate, end: endDate },
           repositories,
           includeBots: options.includeBots,
@@ -899,7 +903,7 @@ program
       } else if (options.type === 'repos') {
         // Repository health report
         const healthReport = reportGenerator.generateRepositoryHealthReport({
-          organization: config.github.organization,
+          organization: config.github.organization || '',
           dateRange: { start: startDate, end: endDate },
           repositories,
           includeBots: options.includeBots,
@@ -910,7 +914,7 @@ program
       } else {
         // overview (default)
         const metrics = reportGenerator.generateOrganizationReport({
-          organization: config.github.organization,
+          organization: config.github.organization || '',
           dateRange: { start: startDate, end: endDate },
           repositories,
           includeBots: options.includeBots,

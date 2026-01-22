@@ -49,11 +49,18 @@ export interface FetchPRsOptions {
 export class GitHubClient {
   private octokit: Octokit;
   private config: GitHubConfig;
+  private organization: string;
   private rateLimit: GitHubRateLimit | null = null;
   private logger: Logger;
 
   constructor(config: GitHubConfig, logger: Logger) {
+    if (!config.token || !config.organization) {
+      throw new GitHubAuthenticationError(
+        'GitHub token and organization are required. Set GITHUB_TOKEN and GITHUB_ORG in .env'
+      );
+    }
     this.config = config;
+    this.organization = config.organization;
     this.logger = logger.child({ component: 'GitHubClient' });
     this.octokit = new Octokit({
       auth: config.token,
@@ -200,7 +207,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.repos.listForOrg({
-        org: this.config.organization,
+        org: this.organization,
         type: 'all',
         per_page: perPage,
         page,
@@ -227,7 +234,7 @@ export class GitHubClient {
       // Fetch PRs sorted by created date descending
       const response = await this.retryWithBackoff(() =>
         this.octokit.pulls.list({
-          owner: this.config.organization,
+          owner: this.organization,
           repo,
           state: 'all',
           sort: 'created',
@@ -261,7 +268,7 @@ export class GitHubClient {
       while (hasMore) {
         const nextPage = await this.retryWithBackoff(() =>
           this.octokit.pulls.list({
-            owner: this.config.organization,
+            owner: this.organization,
             repo,
             state: 'all',
             sort: 'created',
@@ -299,7 +306,7 @@ export class GitHubClient {
   async fetchPullRequest(repo: string, prNumber: number): Promise<GitHubPullRequest> {
     const response = await this.retryWithBackoff(() =>
       this.octokit.pulls.get({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         pull_number: prNumber,
       })
@@ -319,7 +326,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.pulls.list({
-        owner: this.config.organization,
+        owner: this.organization,
         repo: options.repo,
         state: options.state ?? 'all',
         sort: 'updated',
@@ -362,7 +369,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.pulls.listReviews({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         pull_number: prNumber,
         per_page: perPage,
@@ -387,7 +394,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.issues.listComments({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         issue_number: prNumber,
         per_page: perPage,
@@ -412,7 +419,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.pulls.listReviewComments({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         pull_number: prNumber,
         per_page: perPage,
@@ -450,7 +457,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.pulls.listCommits({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         pull_number: prNumber,
         per_page: perPage,
@@ -477,7 +484,7 @@ export class GitHubClient {
 
     try {
       const response = await this.octokit.repos.get({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
       });
 
@@ -499,7 +506,7 @@ export class GitHubClient {
 
     const response = await this.retryWithBackoff(() =>
       this.octokit.repos.getCommit({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         ref: sha,
       })
@@ -522,7 +529,7 @@ export class GitHubClient {
 
     const fetchPage = async (page: number, perPage: number) => {
       const response = await this.octokit.repos.listCommits({
-        owner: this.config.organization,
+        owner: this.organization,
         repo,
         sha: branch, // Filter by branch
         since: options.since?.toISOString(),
@@ -560,6 +567,6 @@ export class GitHubClient {
    * Get organization name
    */
   getOrganization(): string {
-    return this.config.organization;
+    return this.organization;
   }
 }
