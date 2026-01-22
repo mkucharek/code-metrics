@@ -48,6 +48,7 @@ interface SyncCommandOptions {
   since: string;
   until?: string;
   force: boolean;
+  skipQuotaCheck: boolean;
 }
 
 /**
@@ -68,6 +69,11 @@ program
   )
   .option('-u, --until <date>', 'End date (ISO format, defaults to end of today)')
   .option('-f, --force', 'Force resync even if already synced', false)
+  .option(
+    '--skip-quota-check',
+    'Skip quota pre-check (sync repo even with low remaining quota)',
+    false
+  )
   .action(async (options: SyncCommandOptions) => {
     const spinner = ora('Initializing...').start();
     const configService = new ConfigService();

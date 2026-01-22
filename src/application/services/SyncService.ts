@@ -44,6 +44,8 @@ export interface SyncOptions {
   force: boolean;
   /** Verbose output */
   verbose?: boolean;
+  /** Skip quota pre-check (sync repo even with low remaining quota) */
+  skipQuotaCheck?: boolean;
 }
 
 /**
@@ -169,6 +171,7 @@ export class SyncService {
       endDate,
       force: options.force,
       verbose: options.verbose ?? false,
+      skipQuotaCheck: options.skipQuotaCheck ?? false,
     };
 
     // Run sync

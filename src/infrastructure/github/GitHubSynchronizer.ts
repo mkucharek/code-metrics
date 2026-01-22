@@ -33,6 +33,8 @@ export interface SyncOptions {
   force?: boolean;
   /** Show progress indicators */
   verbose?: boolean;
+  /** Skip quota pre-check (sync repo even with low remaining quota) */
+  skipQuotaCheck?: boolean;
 }
 
 /**
@@ -283,8 +285,8 @@ export class GitHubSynchronizer {
     const firstRange = ranges[0];
     const fetchStartDate = firstRange ? firstRange.start : options.startDate;
 
-    // Skip quota check if user explicitly specified a single repo (they know what they're doing)
-    const skipQuotaCheck = !!options.repo;
+    // Skip quota check if user explicitly specified a single repo or used --skip-quota-check
+    const skipQuotaCheck = !!options.repo || !!options.skipQuotaCheck;
 
     if (!skipQuotaCheck) {
       // Check if we have enough quota to sync this repo (after cache detection)
