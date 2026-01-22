@@ -19,6 +19,21 @@
   },
   "reports": {
     "defaultDateRange": "last-30-days",
-    "outputDirectory": "./reports"
+    "outputDirectory": "./reports",
+    "excludedUsers": ["dependabot[bot]", "github-actions[bot]"]
+  },
+  "teams": {
+    "frontend": {
+      "name": "Frontend Team",
+      "description": "Web and mobile application developers",
+      "members": ["alice", "bob", "charlie"],
+      "repositories": ["web-app", "mobile-app"]
+    },
+    "backend": {
+      "name": "Backend API Team",
+      "description": "API and backend service developers",
+      "members": ["dave", "eve"],
+      "repositories": ["api-service", "auth-service"]
+    }
   }
 }

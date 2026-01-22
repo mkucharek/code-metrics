@@ -11,6 +11,20 @@ import { z } from 'zod';
 import { ConfigurationError } from '../../domain/errors';
 
 /**
+ * Warn if orphaned .metricsrc file exists
+ */
+function warnIfOrphanedMetricsrc(): void {
+  const metricsrcPath = resolve('./.metricsrc');
+  if (existsSync(metricsrcPath)) {
+    console.warn('\x1b[33m⚠️  Found .metricsrc file which is no longer used.\x1b[0m');
+    console.warn(
+      '\x1b[33m   Migrate teams config to metrics.config.json and delete .metricsrc\x1b[0m'
+    );
+    console.warn('');
+  }
+}
+
+/**
  * Parse NODE_ENV with validation
  */
 function parseNodeEnv(
@@ -157,6 +171,9 @@ export interface LoadConfigOptions {
  */
 export function loadConfig(options: LoadConfigOptions = {}): AppConfig {
   const { configFile = './metrics.config.json', overrides = {}, loadEnv = true } = options;
+
+  // Warn if orphaned .metricsrc file exists
+  warnIfOrphanedMetricsrc();
 
   // Start with empty config
   let config: Partial<PartialAppConfig> = {};

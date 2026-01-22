@@ -11,8 +11,8 @@ out/
 .env.local
 .env.*.local
 
-# Configuration files (use .metricsrc.example as template)
-.metricsrc
+# Configuration files (use metrics.config.example.json as template)
+metrics.config.json
 
 # Claude
 .claude/settings.local.json

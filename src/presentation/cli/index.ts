@@ -690,7 +690,7 @@ program
     '-r, --repo <repos>',
     'Filter by repository (comma-separated for multiple, e.g., "web-app,api-app-data")'
   )
-  .option('--team <team>', 'Filter by team (defined in .metricsrc)')
+  .option('--team <team>', 'Filter by team (defined in metrics.config.json)')
   .option('-f, --format <format>', 'Output format: markdown, json, or csv', 'markdown')
   .option('-o, --output <file>', 'Output file (defaults to stdout)')
   .option('-t, --type <type>', 'Report type: overview, engineer, rankings, or repos', 'overview')
@@ -741,8 +741,8 @@ program
             Object.keys(config.teams).join(', ') || '(none configured)'
           );
           console.log();
-          console.log(chalk.cyan('💡 Add teams to your .metricsrc file'));
-          console.log(chalk.gray('   See .metricsrc.example for examples'));
+          console.log(chalk.cyan('💡 Add teams to your metrics.config.json file'));
+          console.log(chalk.gray('   See metrics.config.example.json for examples'));
           process.exit(1);
         }
 

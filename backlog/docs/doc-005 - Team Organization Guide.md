@@ -18,7 +18,7 @@ The metrics platform supports organizing engineers into teams for team-level rep
 
 ### Basic Setup
 
-Create or edit `.metricsrc` in your project root:
+Create or edit `metrics.config.json` in your project root:
 
 ```json
 {
@@ -56,7 +56,15 @@ Each team has the following properties:
 
 ### Example Configuration
 
-See `.metricsrc.example` for a complete example with multiple teams.
+See `metrics.config.example.json` for a complete example with multiple teams.
+
+### Migration from .metricsrc
+
+If you previously created a `.metricsrc` file, your teams configuration was not being loaded.
+To fix:
+1. Copy the `teams` section from `.metricsrc` to `metrics.config.json`
+2. Delete or rename `.metricsrc`
+3. Verify: `pnpm dev report --team <team-name>`
 
 ## Usage
 
@@ -133,7 +141,7 @@ Planned for Phase 2:
 
 ### Adding a New Team
 
-1. Edit `.metricsrc`
+1. Edit `metrics.config.json`
 2. Add team definition under `teams`
 3. Specify team name, members, and repositories
 4. Save and test:
@@ -144,11 +152,11 @@ pnpm dev report --team new-team --since 7
 
 ### Updating Team Membership
 
-Simply edit the `members` array in `.metricsrc`. Changes take effect immediately.
+Simply edit the `members` array in `metrics.config.json`. Changes take effect immediately.
 
 ### Removing a Team
 
-Delete the team entry from the `teams` object in `.metricsrc`.
+Delete the team entry from the `teams` object in `metrics.config.json`.
 
 ## Best Practices
 
@@ -205,7 +213,7 @@ The system validates team configuration:
 ❌ Team not found: frontend
 ```
 
-**Solution:** Check team ID in `.metricsrc` matches the `--team` argument exactly (case-sensitive).
+**Solution:** Check team ID in `metrics.config.json` matches the `--team` argument exactly (case-sensitive).
 
 ### No Data for Team
 
