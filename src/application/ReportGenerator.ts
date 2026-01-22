@@ -32,9 +32,9 @@ import { getEngineerTeams } from '../infrastructure/config/teams';
 import {
   CommentRepository,
   CommitRepository,
+  DailySyncMetadataRepository,
   PRRepository,
   ReviewRepository,
-  SyncMetadataRepository,
 } from '../infrastructure/storage/repositories';
 
 /**
@@ -64,14 +64,14 @@ export class ReportGenerator {
   private prRepository: PRRepository;
   private reviewRepository: ReviewRepository;
   private commentRepository: CommentRepository;
-  private syncMetadataRepository: SyncMetadataRepository;
+  private dailySyncMetadataRepository: DailySyncMetadataRepository;
   private commitRepository: CommitRepository;
 
   constructor(db: Database) {
     this.prRepository = new PRRepository(db);
     this.reviewRepository = new ReviewRepository(db);
     this.commentRepository = new CommentRepository(db);
-    this.syncMetadataRepository = new SyncMetadataRepository(db);
+    this.dailySyncMetadataRepository = new DailySyncMetadataRepository(db);
     this.commitRepository = new CommitRepository(db);
   }
 
@@ -1293,7 +1293,7 @@ export class ReportGenerator {
 
   /**
    * Check if data exists for the requested date range
-   * Returns information about sync coverage
+   * Returns information about sync coverage using daily sync metadata
    */
   checkDataCoverage(
     organization: string,
@@ -1310,47 +1310,46 @@ export class ReportGenerator {
       missingRepositories: [] as string[],
     };
 
+    // Helper to format date as YYYY-MM-DD for comparison
+    const toDateString = (date: Date): string => date.toISOString().split('T')[0]!;
+
+    const requestedStart = toDateString(dateRange.start);
+    const requestedEnd = toDateString(dateRange.end);
+
     if (repository) {
-      // Check single repository
-      const sync = this.syncMetadataRepository.getLastSync(
+      // Check single repository using daily sync metadata
+      const coverage = this.dailySyncMetadataRepository.getDateRangeCoverage(
         'pull_requests',
         organization,
         repository
       );
 
-      if (
-        sync &&
-        sync.dateRangeStart &&
-        sync.dateRangeEnd &&
-        sync.dateRangeStart <= dateRange.start &&
-        sync.dateRangeEnd >= dateRange.end
-      ) {
+      if (coverage && coverage.minDate <= requestedStart && coverage.maxDate >= requestedEnd) {
         result.hasCoverage = true;
         result.syncedRanges.push({
-          start: sync.dateRangeStart,
-          end: sync.dateRangeEnd,
+          start: new Date(coverage.minDate),
+          end: new Date(coverage.maxDate),
           repository,
         });
       } else {
         result.missingRepositories.push(repository);
       }
     } else {
-      // Check all repositories
-      const repos = this.syncMetadataRepository.getRepositories(organization);
+      // Check all repositories using summary from daily sync
+      const summary = this.dailySyncMetadataRepository.getSyncSummary(organization);
+      const repos = [...new Set(summary.map((s) => s.repository))];
 
       for (const repo of repos) {
-        const sync = this.syncMetadataRepository.getLastSync('pull_requests', organization, repo);
+        const coverage = this.dailySyncMetadataRepository.getDateRangeCoverage(
+          'pull_requests',
+          organization,
+          repo
+        );
 
-        if (
-          sync &&
-          sync.dateRangeStart &&
-          sync.dateRangeEnd &&
-          sync.dateRangeStart <= dateRange.start &&
-          sync.dateRangeEnd >= dateRange.end
-        ) {
+        if (coverage && coverage.minDate <= requestedStart && coverage.maxDate >= requestedEnd) {
           result.syncedRanges.push({
-            start: sync.dateRangeStart,
-            end: sync.dateRangeEnd,
+            start: new Date(coverage.minDate),
+            end: new Date(coverage.maxDate),
             repository: repo,
           });
         }
